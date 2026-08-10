@@ -311,87 +311,6 @@
         }}>
           <JewelSvg color={jewel.color} isFlying={true} />
         </div>
-      );
-    };
-
-    const TestLab = () => {
-      const c1 = "1";
-      const c2 = "2";
-      const c4 = "4";
-      
-      const testBoard = [
-        [{ target: c1, jewel: null }, { target: c1, jewel: null }, { target: c1, jewel: null }, { target: c2, jewel: null }, { target: c4, jewel: null }],
-        [{ target: c1, jewel: c1 }, { target: c1, jewel: c1 }, { target: c1, jewel: c1 }, { target: c2, jewel: c2 }, { target: c4, jewel: null }],
-        [{ target: c1, jewel: c1 }, { target: c2, jewel: c2 }, { target: c4, jewel: c4 }, { target: c1, jewel: c1 }, { target: c2, jewel: c2 }],
-        [{ target: c1, jewel: c2 }, { target: c2, jewel: c1 }, { target: c4, jewel: c2 }, { target: c1, jewel: c4 }, { target: c1, jewel: null }],
-        [{ target: c4, jewel: c4 }, { target: c4, jewel: null }, { target: c4, jewel: c4 }, { target: c1, jewel: null }, { target: c2, jewel: c2 }]
-      ];
-
-      const renderGrid = (size, isModified) => (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(5, ${size}px)`, gap: 0, border: "1px solid #ccc", padding: 10, background: "#fff", width: "fit-content" }}>
-          {testBoard.map((row, r) => row.map((cell, c) => {
-            const slotColor = cell.target ? PALETTE[cell.target].slot : 'transparent';
-            
-            // In modified version, only show indentation if jewel is NOT placed
-            const showIndentation = isModified ? (cell.target && !cell.jewel) : cell.target;
-            
-            return (
-              <div key={`${r}-${c}`} style={{
-                width: size, height: size,
-                backgroundColor: slotColor,
-                position: "relative",
-                display: "flex", alignItems: "center", justifyContent: "center"
-              }}>
-                {showIndentation && (
-                  <div style={{
-                    position: 'absolute',
-                    width: '84%', height: '84%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.12)',
-                    borderRadius: 4,
-                    boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.25), inset -1px -1px 2px rgba(255,255,255,0.4)"
-                  }}></div>
-                )}
-                {cell.jewel && (
-                  <div style={{ width: '88%', height: '88%', position: 'relative', zIndex: 2 }}>
-                    <JewelSvg color={cell.jewel} />
-                  </div>
-                )}
-              </div>
-            );
-          }))}
-        </div>
-      );
-
-      return (
-        <div style={{ padding: 20, background: "#f8f9fa", marginBottom: 20, borderRadius: 8, border: "2px dashed #ff007f" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.2rem" }}>Board Tile Composition Test Lab</h2>
-          <p style={{ fontSize: "0.9rem", color: "#666", marginBottom: "1rem" }}>실제 18px vs 확대 36px 조합 테스트 (gap: 0px)</p>
-          <div style={{ display: "flex", gap: 30, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <div>
-              <h4 style={{ margin: "0 0 10px 0", fontSize: "1rem" }}>[18px] A. 현재 방식</h4>
-              <p style={{ fontSize: "0.8rem", color: "#888", margin: "0 0 8px 0" }}>모든 칸에 슬롯 음각</p>
-              {renderGrid(18, false)}
-            </div>
-            <div>
-              <h4 style={{ margin: "0 0 10px 0", fontSize: "1rem" }}>[18px] B. 수정 방식</h4>
-              <p style={{ fontSize: "0.8rem", color: "#888", margin: "0 0 8px 0" }}>보석 아래 음각 숨김</p>
-              {renderGrid(18, true)}
-            </div>
-            <div>
-              <h4 style={{ margin: "0 0 10px 0", fontSize: "1rem" }}>[36px] A. 현재 방식</h4>
-              <p style={{ fontSize: "0.8rem", color: "#888", margin: "0 0 8px 0" }}>모든 칸에 슬롯 음각</p>
-              {renderGrid(36, false)}
-            </div>
-            <div>
-              <h4 style={{ margin: "0 0 10px 0", fontSize: "1rem" }}>[36px] B. 수정 방식</h4>
-              <p style={{ fontSize: "0.8rem", color: "#888", margin: "0 0 8px 0" }}>보석 아래 음각 숨김</p>
-              {renderGrid(36, true)}
-            </div>
-          </div>
-        </div>
-      );
-    };
-
     const JewelColoring = () => {
       const { minR, maxR, minC, maxC } = useMemo(() => {
         let minR = ROWS, maxR = 0, minC = COLS, maxC = 0;
@@ -757,7 +676,6 @@
 
       return (
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "1rem 16px", fontFamily: "sans-serif", position: "relative", boxSizing: "border-box" }}>
-          <TestLab />
           <style>{`
             @keyframes shake {
               0%, 100% { transform: translateX(0); }
@@ -884,7 +802,7 @@
                         }}
                       >
                         {/* The empty slot recessed socket */}
-                        {targetColor && (
+                        {(targetColor && !currentColor) && (
                           <div style={{
                             position: 'absolute',
                             width: '84%', height: '84%',
@@ -954,13 +872,15 @@
                     }}
                   >
                     {/* The empty slot recessed socket for Tray */}
-                    <div style={{
-                      position: 'absolute',
-                      width: '84%', height: '84%',
-                      backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                      borderRadius: 6,
-                      boxShadow: "inset 2px 2px 3px rgba(0,0,0,0.25), inset -2px -2px 3px rgba(255,255,255,0.4)"
-                    }}></div>
+                    {!color && (
+                      <div style={{
+                        position: 'absolute',
+                        width: '84%', height: '84%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                        borderRadius: 6,
+                        boxShadow: "inset 2px 2px 3px rgba(0,0,0,0.25), inset -2px -2px 3px rgba(255,255,255,0.4)"
+                      }}></div>
+                    )}
 
                     {color && (
                       <div style={{ width: '88%', height: '88%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}>
