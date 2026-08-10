@@ -315,6 +315,21 @@
     };
 
     const JewelColoring = () => {
+      const { minR, maxR, minC, maxC } = useMemo(() => {
+        let minR = ROWS, maxR = 0, minC = COLS, maxC = 0;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            if (BOARD_CONFIG[r][c] !== null) {
+              if (r < minR) minR = r;
+              if (r > maxR) maxR = r;
+              if (c < minC) minC = c;
+              if (c > maxC) maxC = c;
+            }
+          }
+        }
+        return { minR, maxR, minC, maxC };
+      }, []);
+
       const [boardState, setBoardState] = useState(() => createInitialBoard());
       const [tray, setTray] = useState([]);
       const [trayCapacity, setTrayCapacity] = useState(INITIAL_TRAY_CAPACITY);
@@ -748,10 +763,13 @@
           {/* Board Container */}
           <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: "3rem" }}>
             {/* Sweep container */}
-            <div style={{ position: "relative", overflow: "hidden", padding: "10px 10px 14px 10px", borderRadius: 12, backgroundColor: "#e2e2e2", boxShadow: "0 8px 16px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.8)", width: "100%", maxWidth: "398px", boxSizing: "border-box" }} className={showSweep ? "light-sweep" : ""}>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${COLS}, 1fr)`, width: "100%", gap: 0, position: "relative", zIndex: 1 }}>
-                {BOARD_CONFIG.map((row, r) =>
-                  row.map((targetColor, c) => {
+            <div style={{ position: "relative", overflow: "hidden", width: "100%", maxWidth: "420px" }} className={showSweep ? "light-sweep" : ""}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${maxC - minC + 1}, 1fr)`, width: "100%", gap: 0, position: "relative", zIndex: 1 }}>
+                {Array.from({ length: maxR - minR + 1 }).map((_, i) => {
+                  const r = minR + i;
+                  return Array.from({ length: maxC - minC + 1 }).map((_, j) => {
+                    const c = minC + j;
+                    const targetColor = BOARD_CONFIG[r][c];
                     if (targetColor === null) {
                       return <div key={r + "-" + c} style={{ width: "100%", aspectRatio: "1 / 1" }} />;
                     }
@@ -806,8 +824,8 @@
                         )}
                       </div>
                     );
-                  })
-                )}
+                  });
+                })}
               </div>
             </div>
           </div>
