@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jewel Coloring MVP v7 (Cascade Flight)</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="margin:0; background:#fff;">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const PALETTE = {
+      // 1: Ivory / Cream (Very Light, low sat)
+      "1": { id: "1", base: "#FFF9E6", bevel: "#E6DCA8", dark: "#B3A772", slot: "#FFE499" }, 
+      // 2: Vivid Blue (Mid-tone, saturated)
+      "2": { id: "2", base: "#1E90FF", bevel: "#005CE6", dark: "#003380", slot: "#4DA6FF" }, 
+      // 3: Vivid Pink (Mid lightness, high sat)
+      "3": { id: "3", base: "#FF1493", bevel: "#CC006E", dark: "#800045", slot: "#FF66B2" }, 
+      // 4: Lime Green (Bright, very saturated)
+      "4": { id: "4", base: "#32CD32", bevel: "#228B22", dark: "#006400", slot: "#7CFC00" }, 
+      // 5: Deep Navy / Indigo (Very Dark)
+      "5": { id: "5", base: "#191970", bevel: "#0F0F45", dark: "#05051A", slot: "#404099" }, 
+      // 6: Bright Orange (Mid lightness, high sat)
+      "6": { id: "6", base: "#FF8C00", bevel: "#CC7000", dark: "#804600", slot: "#FFA500" }, 
+      // 7: Dark Purple (Low lightness, mid sat)
+      "7": { id: "7", base: "#8A2BE2", bevel: "#691EAB", dark: "#4B0082", slot: "#9B30FF" }, 
+    };
+
+    const _ = null;
+
+    // --- Jewel SVG Component ---
+    const JewelSvg = ({ color, isFlying, isFlashing, selected }) => {
+      const c = PALETTE[color];
+      
+      if (!c) return null;
+
+      const transformStyle = {
+        width: "100%",
+        height: "100%",
+        transition: "all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transform: selected ? "scale(1.05) translateY(-2px)" : (isFlying ? "scale(1)" : (isFlying === false ? "scale(1.1)" : "scale(1)")),
+        filter: selected ? "drop-shadow(0px 3px 2px rgba(0,0,0,0.5))" : "drop-shadow(0px 1px 1px rgba(0,0,0,0.15))",
+        animation: isFlying === true ? 'fly-bulge 0.3s ease-in-out' : (isFlashing ? 'flash 0.5s ease-in-out' : 'none'),
+        position: 'relative',
+        zIndex: selected ? 10 : 2
+      };
+
+      return (
+        <div style={transformStyle}>
+          <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+            {/* Base shape & Rim */}
+            <polygon points="30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30" fill={c.dark} />
+            
+            {/* Inner Base (Flat Color) */}
+            <polygon points="30,6 70,6 94,30 94,70 70,94 30,94 6,70 6,30" fill={c.base} />
+
+            {/* Top Bevel (Bright) */}
+            <polygon points="30,6 70,6 64,25 36,25" fill="rgba(255,255,255,0.6)" />
+            {/* Top-Left Bevel (Bright) */}
+            <polygon points="6,30 30,6 36,25 25,36" fill="rgba(255,255,255,0.4)" />
+            {/* Left Bevel (Mild Bright) */}
+            <polygon points="6,30 6,70 25,64 25,36" fill="rgba(255,255,255,0.2)" />
+            
+            {/* Bottom Bevel (Dark) */}
+            <polygon points="70,94 30,94 36,75 64,75" fill="rgba(0,0,0,0.3)" />
+            {/* Bottom-Right Bevel (Dark) */}
+            <polygon points="94,70 70,94 64,75 75,64" fill="rgba(0,0,0,0.4)" />
+            {/* Right Bevel (Mild Dark) */}
+            <polygon points="94,30 94,70 75,64 75,36" fill="rgba(0,0,0,0.2)" />
+          </svg>
+        </div>
+      );
+    };
+
+    const c1 = "1";
+    const c2 = "2";
+    const c3 = "3";
+    const c4 = "4";
+    const c5 = "5";
+    const c6 = "6";
+    const c7 = "7";
+
+    const BOARD_CONFIG = [
+      [_,_,_,_,_,_,_,_,_,_,c1,c1,c1,c1,_,_,_,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,_,_,c1,c1,c2,c2,c1,c1,_,_,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,_,c1,c1,c2,c2,c2,c2,c1,c1,_,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,c1,c1,c2,c2,c2,c2,c2,c2,c1,c1,_,_,_,_,_,_,_],
+      [_,_,_,_,_,c1,c1,c1,c1,c2,c2,c2,c2,c2,c2,c1,c1,c1,c1,_,_,_,_,_],
+      [_,_,_,c1,c1,c1,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c1,c1,c1,_,_,_,_],
+      [_,_,_,c1,c1,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c1,c1,_,_,_,_],
+      [_,_,_,c1,c2,c2,c2,c2,c2,c2,c4,c4,c4,c4,c2,c2,c2,c2,c2,c2,c1,_,_,_],
+      [_,_,c1,c1,c2,c2,c2,c2,c2,c4,c4,c4,c4,c4,c4,c2,c2,c2,c2,c2,c1,c1,_,_],
+      [_,_,_,c1,c2,c2,c2,c2,c2,c4,c4,c4,c4,c4,c4,c2,c2,c2,c2,c2,c1,_,_,_],
+      [_,_,_,c1,c1,c2,c2,c2,c2,c4,c4,c4,c4,c4,c4,c2,c2,c2,c2,c1,c1,_,_,_],
+      [_,_,_,_,c1,c1,c2,c2,c2,c4,c4,c4,c4,c4,c4,c2,c2,c2,c1,c1,_,_,_,_],
+      [_,_,_,_,_,c1,c2,c2,c2,c2,c4,c4,c4,c4,c2,c2,c2,c2,c1,_,_,_,_,_],
+      [_,_,_,_,c1,c1,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c2,c1,c1,_,_,_,_],
+      [_,_,_,_,c1,c1,c2,c2,c2,c2,c2,c5,c5,c2,c2,c2,c2,c2,c1,c1,_,_,_,_],
+      [_,_,_,_,_,c1,c2,c2,c2,c2,c2,c5,c5,c2,c2,c2,c2,c2,c1,_,_,_,_,_],
+      [_,_,_,_,_,c1,c1,c2,c2,c2,c2,c5,c5,c2,c2,c2,c2,c1,c1,_,_,_,_,_],
+      [_,_,_,_,_,_,c1,c1,c2,c2,c2,c5,c5,c2,c2,c2,c1,c1,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,c1,c1,c1,c1,c5,c5,c1,c1,c1,_,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,c7,c7,c7,c6,c5,c5,_,_,_,_,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,c7,c7,c7,c7,c7,c5,c5,_,_,_,_,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,c7,c7,c7,c7,c7,c5,c5,c6,c7,c7,c7,_,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,c7,c7,c7,c6,c5,c5,c7,c7,c7,c7,c7,_,_,_,_,_,_],
+      [_,_,_,_,_,_,_,_,_,_,_,_,_,c7,c7,c7,c7,c7,_,_,_,_,_,_]
+    ];
+
+    const ROWS = BOARD_CONFIG.length;
+    const COLS = BOARD_CONFIG[0].length;
+    const INITIAL_TRAY_CAPACITY = 8;
+
+    function createInitialBoard() {
+      const allJewels = [];
+      const validPositions = [];
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (BOARD_CONFIG[r][c] !== null) {
+            allJewels.push(BOARD_CONFIG[r][c]);
+            validPositions.push({ r, c });
+          }
+        }
+      }
+
+      // 1. Initial random shuffle
+      for (let i = allJewels.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allJewels[i], allJewels[j]] = [allJewels[j], allJewels[i]];
+      }
+
+      // 2. Fix matches to ensure complete derangement
+      let hasMatch = true;
+      let safety = 0;
+      while (hasMatch && safety < 1000) {
+        hasMatch = false;
+        for (let i = 0; i < validPositions.length; i++) {
+          const posI = validPositions[i];
+          if (allJewels[i] === BOARD_CONFIG[posI.r][posI.c]) {
+            hasMatch = true;
+            
+            let swapped = false;
+            for (let j = 0; j < validPositions.length; j++) {
+              if (i === j) continue;
+              const posJ = validPositions[j];
+              if (allJewels[j] !== BOARD_CONFIG[posI.r][posI.c] && 
+                  allJewels[i] !== BOARD_CONFIG[posJ.r][posJ.c]) {
+                [allJewels[i], allJewels[j]] = [allJewels[j], allJewels[i]];
+                swapped = true;
+                break;
+              }
+            }
+            
+            if (!swapped) {
+              for (let j = 0; j < validPositions.length; j++) {
+                if (i !== j && allJewels[j] !== allJewels[i]) {
+                  [allJewels[i], allJewels[j]] = [allJewels[j], allJewels[i]];
+                  break;
+                }
+              }
+            }
+          }
+        }
+        safety++;
+      }
+
+      const boardState = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+      for (let i = 0; i < validPositions.length; i++) {
+        const { r, c } = validPositions[i];
+        boardState[r][c] = allJewels[i];
+      }
+      
+      return boardState;
+    }
+
+    function getConnectedGroup(boardState, r, c) {
+      const color = boardState[r][c];
+      if (!color) return [];
+
+      const visited = new Set();
+      const group = [];
+      const queue = [{ r, c }];
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        const key = `${curr.r},${curr.c}`;
+        
+        if (visited.has(key)) continue;
+        visited.add(key);
+        group.push(curr);
+
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = curr.r + dr;
+            const nc = curr.c + dc;
+            if (
+              nr >= 0 && nr < ROWS &&
+              nc >= 0 && nc < COLS &&
+              boardState[nr][nc] === color &&
+              boardState[nr][nc] !== BOARD_CONFIG[nr][nc] &&
+              !visited.has(`${nr},${nc}`)
+            ) {
+              queue.push({ r: nr, c: nc });
+            }
+          }
+        }
+      }
+      return group; 
+    }
+
+    function getConnectedEmptyGroup(boardState, r, c, targetColor) {
+      const visited = new Set();
+      const group = [];
+      const queue = [{ r, c }];
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        const key = `${curr.r},${curr.c}`;
+        
+        if (visited.has(key)) continue;
+        visited.add(key);
+        group.push(curr);
+
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = curr.r + dr;
+            const nc = curr.c + dc;
+            if (
+              nr >= 0 && nr < ROWS &&
+              nc >= 0 && nc < COLS &&
+              BOARD_CONFIG[nr][nc] === targetColor &&
+              boardState[nr][nc] === null &&
+              !visited.has(`${nr},${nc}`)
+            ) {
+              queue.push({ r: nr, c: nc });
+            }
+          }
+        }
+      }
+      return group; 
+    }
+
+    const Confetti = () => {
+      const confettiColors = ['#ff0a54', '#ff477e', '#ff7096', '#ff85a1', '#fbb1bd', '#f9bec7', '#ffd166', '#06d6a0', '#118ab2', '#073b4c', '#ffd166', '#ff9f1c'];
+      return (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 100, overflow: 'hidden' }}>
+          {Array.from({ length: 70 }).map((_, i) => {
+            const left = Math.random() * 100;
+            const animDuration = 1.5 + Math.random() * 2; 
+            const animDelay = Math.random() * 0.5;
+            const color = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+            const width = 8 + Math.random() * 8;
+            const height = width * 1.5;
+            return (
+              <div key={i} style={{
+                position: 'absolute',
+                left: `${left}%`,
+                top: '-10vh',
+                width: `${width}px`,
+                height: `${height}px`,
+                backgroundColor: color,
+                opacity: 0.9,
+                animation: `fall ${animDuration}s linear ${animDelay}s forwards`,
+              }} />
+            );
+          })}
+        </div>
+      );
+    };
+
+    // New Flight Jewel Component
+    const FlightJewel = ({ jewel, onComplete }) => {
+      const [isFlying, setIsFlying] = useState(false);
+      const [isDone, setIsDone] = useState(false);
+
+      useEffect(() => {
+        const startTimer = setTimeout(() => {
+          setIsFlying(true);
+        }, jewel.delay);
+        
+        const endTimer = setTimeout(() => {
+          setIsDone(true);
+          onComplete(jewel);
+        }, jewel.delay + 300); // 300ms flight time
+        
+        return () => { clearTimeout(startTimer); clearTimeout(endTimer); };
+      }, []);
+
+      if (isDone) return null;
+
+      return (
+        <div style={{
+          position: 'fixed',
+          left: isFlying ? jewel.endX : jewel.startX,
+          top: isFlying ? jewel.endY : jewel.startY,
+          width: isFlying ? jewel.endW : jewel.startW,
+          height: isFlying ? jewel.endH : jewel.startH,
+          transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <JewelSvg color={jewel.color} isFlying={true} />
+        </div>
+      );
+    };
+
+    const JewelColoring = () => {
+      const [boardState, setBoardState] = useState(() => createInitialBoard());
+      const [tray, setTray] = useState([]);
+      const [trayCapacity, setTrayCapacity] = useState(INITIAL_TRAY_CAPACITY);
+      const [expandedColors, setExpandedColors] = useState(new Set());
+      
+      const [selectedGroup, setSelectedGroup] = useState(null);
+      const [shakeKey, setShakeKey] = useState(null);
+
+      const [justCompletedColor, setJustCompletedColor] = useState(null);
+      const [showSweep, setShowSweep] = useState(false);
+      
+      // Cascade Flight States
+      const [flyingJewels, setFlyingJewels] = useState([]);
+      const [hiddenJewels, setHiddenJewels] = useState(new Set());
+      const [flashSlots, setFlashSlots] = useState(new Set());
+      const [landedSparks, setLandedSparks] = useState(new Set());
+      
+      const { totalCells, correctCells } = useMemo(() => {
+        let total = 0;
+        let correct = 0;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            if (BOARD_CONFIG[r][c] !== null) {
+              total++;
+              if (BOARD_CONFIG[r][c] === boardState[r][c]) {
+                correct++;
+              }
+            }
+          }
+        }
+        return { totalCells: total, correctCells: correct };
+      }, [boardState]);
+
+      const isComplete = totalCells > 0 && correctCells === totalCells;
+
+      useEffect(() => {
+        if (isComplete) {
+           setShowSweep(true);
+           setTimeout(() => setShowSweep(false), 800);
+           setJustCompletedColor(null);
+        }
+      }, [isComplete]);
+
+      useEffect(() => {
+        const newExpanded = new Set(expandedColors);
+        let expanded = false;
+        let lastCompletedColor = null;
+
+        Object.keys(PALETTE).forEach((color) => {
+          if (!newExpanded.has(color)) {
+            let isColorComplete = true;
+            let colorExists = false;
+            
+            for (let r = 0; r < ROWS; r++) {
+              for (let c = 0; c < COLS; c++) {
+                if (BOARD_CONFIG[r][c] === color) {
+                  colorExists = true;
+                  if (boardState[r][c] !== color) {
+                    isColorComplete = false;
+                  }
+                }
+              }
+            }
+            
+            if (colorExists && isColorComplete) {
+              newExpanded.add(color);
+              setTrayCapacity(prev => prev + 4);
+              expanded = true;
+              lastCompletedColor = color;
+            }
+          }
+        });
+
+        if (expanded) {
+          setExpandedColors(newExpanded);
+          if (lastCompletedColor && !isComplete) {
+            setJustCompletedColor(lastCompletedColor);
+            setTimeout(() => setJustCompletedColor(null), 600);
+          }
+        }
+      }, [boardState, expandedColors, isComplete]);
+
+      const handleFlightComplete = (jewel) => {
+        setFlyingJewels(prev => prev.filter(f => f.id !== jewel.id));
+        setHiddenJewels(prev => {
+          const next = new Set(prev);
+          next.delete(jewel.destId);
+          return next;
+        });
+        
+        if (jewel.destId && jewel.destId.startsWith('board-')) {
+           const parts = jewel.destId.split('-');
+           const r = parseInt(parts[1], 10);
+           const c = parseInt(parts[2], 10);
+           
+           setBoardState(prev => {
+             const next = prev.map(row => [...row]);
+             next[r][c] = jewel.color;
+             return next;
+           });
+           
+           // Trigger individual sparkle for landing
+           setFlashSlots(prev => new Set(prev).add(jewel.destId));
+           setLandedSparks(prev => new Set(prev).add(jewel.destId));
+           setTimeout(() => {
+             setFlashSlots(prev => {
+               const next = new Set(prev);
+               next.delete(jewel.destId);
+               return next;
+             });
+             setLandedSparks(prev => {
+               const next = new Set(prev);
+               next.delete(jewel.destId);
+               return next;
+             });
+          }, 400);
+        }
+      };
+
+      const triggerFlights = (moves) => {
+        const flights = [];
+        const newHidden = new Set(hiddenJewels);
+        
+        moves.forEach((move, i) => {
+          const sEl = document.getElementById(move.sourceId);
+          const dEl = document.getElementById(move.destId);
+          if (sEl && dEl) {
+            const sRect = sEl.getBoundingClientRect();
+            const dRect = dEl.getBoundingClientRect();
+            
+            flights.push({
+              id: Math.random().toString(36).substr(2, 9),
+              color: move.color,
+              startX: sRect.left,
+              startY: sRect.top,
+              startW: sRect.width,
+              startH: sRect.height,
+              endX: dRect.left,
+              endY: dRect.top,
+              endW: dRect.width,
+              endH: dRect.height,
+              delay: i * 60,
+              destId: move.destId,
+              isLast: i === moves.length - 1
+            });
+            newHidden.add(move.destId);
+          }
+        });
+        
+        if (flights.length > 0) {
+          setFlyingJewels(prev => [...prev, ...flights]);
+          setHiddenJewels(newHidden);
+        }
+      };
+
+      const handleBoardClick = (r, c) => {
+        if (BOARD_CONFIG[r][c] === null) return;
+        const clickedColor = boardState[r][c];
+
+        if (clickedColor !== null && clickedColor === BOARD_CONFIG[r][c]) {
+          return;
+        }
+
+        if (clickedColor === null) {
+          if (selectedGroup) {
+            const targetColor = BOARD_CONFIG[r][c];
+            let selectedColor = null;
+            let isFromBoard = selectedGroup.type === 'board';
+            
+            if (isFromBoard && selectedGroup.items.length > 0) {
+               const first = selectedGroup.items[0];
+               selectedColor = boardState[first.r][first.c];
+            } else if (selectedGroup.type === 'tray') {
+               selectedColor = selectedGroup.color;
+            }
+
+            if (selectedColor === targetColor) {
+               const emptyGroup = getConnectedEmptyGroup(boardState, r, c, targetColor);
+               
+               let amountToMove = 0;
+               if (isFromBoard) {
+                 amountToMove = Math.min(selectedGroup.items.length, emptyGroup.length);
+               } else {
+                 const countInTray = tray.filter(col => col === selectedColor).length;
+                 amountToMove = Math.min(countInTray, emptyGroup.length);
+               }
+
+               const moves = [];
+               const newBoard = [...boardState.map(row => [...row])];
+               
+               for (let i = 0; i < amountToMove; i++) {
+                 const spot = emptyGroup[i];
+                 newBoard[spot.r][spot.c] = selectedColor;
+               }
+               
+               if (isFromBoard) {
+                 const itemsToRemove = selectedGroup.items.slice(0, amountToMove);
+                 const itemsToKeep = selectedGroup.items.slice(amountToMove);
+                 
+                 itemsToRemove.forEach((item, i) => {
+                   const spot = emptyGroup[i];
+                   moves.push({
+                     sourceId: `board-${item.r}-${item.c}`,
+                     destId: `board-${spot.r}-${spot.c}`,
+                     color: selectedColor
+                   });
+                   newBoard[item.r][item.c] = null;
+                 });
+                 
+                 setBoardState(newBoard);
+                 setSelectedGroup(itemsToKeep.length > 0 ? { type: 'board', items: itemsToKeep } : null);
+                 
+               } else {
+                 const newTray = [...tray];
+                 const trayIndicesToMove = [];
+                 for(let i = 0; i < newTray.length; i++) {
+                    if(newTray[i] === selectedColor && trayIndicesToMove.length < amountToMove) {
+                       trayIndicesToMove.push(i);
+                    }
+                 }
+                 
+                 trayIndicesToMove.forEach((trayIdx, i) => {
+                   const spot = emptyGroup[i];
+                   moves.push({
+                     sourceId: `tray-${trayIdx}`,
+                     destId: `board-${spot.r}-${spot.c}`,
+                     color: selectedColor
+                   });
+                 });
+                 
+                 for (let i = trayIndicesToMove.length - 1; i >= 0; i--) {
+                   newTray.splice(trayIndicesToMove[i], 1);
+                 }
+                 
+                 setTray(newTray);
+                 setBoardState(newBoard);
+                 
+                 if (!newTray.includes(selectedColor)) {
+                   setSelectedGroup(null);
+                 }
+               }
+               
+               setTimeout(() => triggerFlights(moves), 0); // setTimeout ensures DOM rects can be grabbed accurately
+            } else {
+               setShakeKey(`board-${r}-${c}`);
+               setTimeout(() => setShakeKey(null), 300);
+            }
+          }
+          return;
+        }
+
+        if (selectedGroup && selectedGroup.type === 'board') {
+          const isSameGroup = selectedGroup.items.some(item => item.r === r && item.c === c);
+          if (isSameGroup) {
+            setSelectedGroup(null);
+            return;
+          }
+        }
+
+        const group = getConnectedGroup(boardState, r, c);
+        setSelectedGroup({ type: 'board', items: group });
+      };
+
+      const handleTrayClick = (clickedColor, index) => {
+        if (selectedGroup && selectedGroup.type === 'board') {
+           handleTrayDestinationClick();
+           return;
+        }
+
+        if (clickedColor) {
+          if (selectedGroup && selectedGroup.type === 'tray' && selectedGroup.color === clickedColor) {
+            setSelectedGroup(null); 
+          } else {
+            setSelectedGroup({ type: 'tray', color: clickedColor });
+          }
+        }
+      };
+
+      const handleTrayDestinationClick = () => {
+        if (selectedGroup && selectedGroup.type === 'board') {
+          const availableSpace = trayCapacity - tray.length;
+          if (availableSpace === 0) {
+            setShakeKey('tray-full');
+            setTimeout(() => setShakeKey(null), 300);
+            return;
+          }
+
+          const itemsToMove = selectedGroup.items.slice(0, availableSpace);
+          const itemsToKeep = selectedGroup.items.slice(availableSpace);
+          
+          const newBoard = [...boardState.map(row => [...row])];
+          const selectedColor = boardState[selectedGroup.items[0].r][selectedGroup.items[0].c];
+          
+          itemsToMove.forEach(item => {
+            newBoard[item.r][item.c] = null;
+          });
+
+          const newTray = [...tray];
+          for (let i = 0; i < itemsToMove.length; i++) {
+            newTray.push(selectedColor);
+          }
+          newTray.sort(); 
+
+          const colorIndices = [];
+          newTray.forEach((col, idx) => { if (col === selectedColor) colorIndices.push(idx); });
+          const targetIndices = colorIndices.slice(-itemsToMove.length);
+
+          const moves = [];
+          itemsToMove.forEach((item, i) => {
+            const destTrayIdx = targetIndices[i];
+            moves.push({
+               sourceId: `board-${item.r}-${item.c}`,
+               destId: `tray-${destTrayIdx}`,
+               color: selectedColor
+            });
+          });
+
+          setBoardState(newBoard);
+          setTray(newTray);
+          setSelectedGroup(itemsToKeep.length > 0 ? { type: 'board', items: itemsToKeep } : null);
+          
+          setTimeout(() => triggerFlights(moves), 0);
+        }
+      };
+
+      const handleReset = () => {
+        setBoardState(createInitialBoard());
+        setTray([]);
+        setTrayCapacity(INITIAL_TRAY_CAPACITY);
+        setExpandedColors(new Set());
+        setSelectedGroup(null);
+        setJustCompletedColor(null);
+        setShowSweep(false);
+        setFlyingJewels([]);
+        setHiddenJewels(new Set());
+        setFlashSlots(new Set());
+      };
+
+      const isSelected = (r, c) => {
+        if (!selectedGroup || selectedGroup.type !== 'board') return false;
+        return selectedGroup.items.some(item => item.r === r && item.c === c);
+      };
+
+      const isTraySelected = (color) => {
+        return selectedGroup && selectedGroup.type === 'tray' && selectedGroup.color === color;
+      };
+
+      return (
+        <div style={{ maxWidth: 480, margin: "0 auto", padding: "2rem 1rem", fontFamily: "sans-serif", position: "relative" }}>
+          <style>{`
+            @keyframes shake {
+              0%, 100% { transform: translateX(0); }
+              25% { transform: translateX(-4px); }
+              75% { transform: translateX(4px); }
+            }
+            @keyframes pop {
+              0% { transform: scale(0.7); opacity: 0; }
+              60% { transform: scale(1.08); opacity: 1; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes color-flash {
+              0% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
+              40% { filter: brightness(1.6) drop-shadow(0 0 10px rgba(255,255,255,0.8)); transform: scale(1.15); z-index: 20; }
+              100% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: scale(1); z-index: 1; }
+            }
+            @keyframes landed-sparkle {
+              0% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 0px rgba(255,255,255,0)); }
+              30% { transform: scale(1.3); filter: brightness(1.8) drop-shadow(0 0 12px rgba(255,255,255,1)); z-index: 30; }
+              100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 0px rgba(255,255,255,0)); z-index: 1; }
+            }
+            @keyframes fly-bulge {
+              0% { transform: scale(1); }
+              50% { transform: scale(1.4); }
+              100% { transform: scale(1); }
+            }
+            @keyframes sweep {
+              0% { left: -100%; opacity: 0; }
+              20% { opacity: 1; }
+              80% { opacity: 1; }
+              100% { left: 200%; opacity: 0; }
+            }
+            @keyframes fall {
+              0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+              100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+            }
+            @keyframes fade-in {
+              from { background: rgba(0,0,0,0); }
+              to { background: rgba(0,0,0,0.65); }
+            }
+
+            .shake { animation: shake 0.3s ease; }
+            .overlay-pop { animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+            .flash { animation: color-flash 0.5s ease-out; }
+            .sparkle { animation: landed-sparkle 0.5s ease-out; }
+            .overlay-dim { animation: fade-in 1s forwards; }
+            
+            .light-sweep::after {
+              content: "";
+              position: absolute;
+              top: -20%; left: -100%;
+              width: 50%; height: 140%;
+              background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%);
+              transform: skewX(-25deg);
+              animation: sweep 0.8s ease-in-out forwards;
+              pointer-events: none;
+              z-index: 30;
+            }
+
+            .cell {
+              background: transparent;
+              padding: 0%;
+              box-sizing: border-box;
+            }
+          `}</style>
+
+          {/* Cascade Flight Overlay */}
+          <div style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 1000 }}>
+            {flyingJewels.map(f => (
+              <FlightJewel key={f.id} jewel={f} onComplete={handleFlightComplete} />
+            ))}
+          </div>
+
+          {/* Confetti Particles on Complete */}
+          {isComplete && <Confetti />}
+
+          {/* Progress */}
+          <div style={{ textAlign: "center", fontSize: 18, fontWeight: 'bold', color: "#333", marginBottom: "2rem" }}>
+            {correctCells} / {totalCells}
+          </div>
+
+          {/* Board Container */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "3rem" }}>
+            {/* Sweep container */}
+            <div style={{ position: "relative", overflow: "hidden", padding: "10px 10px 14px 10px", borderRadius: 12, backgroundColor: "#e2e2e2", boxShadow: "0 8px 16px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.8)" }} className={showSweep ? "light-sweep" : ""}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${COLS}, 18px)`, gridTemplateRows: `repeat(${ROWS}, 18px)`, gap: 0, position: "relative", zIndex: 1 }}>
+                {BOARD_CONFIG.map((row, r) =>
+                  row.map((targetColor, c) => {
+                    if (targetColor === null) {
+                      return <div key={r + "-" + c} style={{ width: 18, height: 18 }} />;
+                    }
+
+                    const boardCol = boardState[r][c];
+                    const slotId = "board-" + r + "-" + c;
+                    const isHidden = hiddenJewels.has(slotId);
+                    
+                    const currentColor = isHidden ? null : boardCol;
+                    
+                    const selected = isSelected(r, c) && !isHidden;
+                    const isShaking = shakeKey === slotId;
+                    
+                    const isFlashing = (justCompletedColor && currentColor === justCompletedColor && targetColor === justCompletedColor) || flashSlots.has(slotId);
+                    const isSparkling = landedSparks.has(slotId);
+
+                    return (
+                      <div
+                        id={slotId}
+                        key={r + "-" + c}
+                        onClick={() => handleBoardClick(r, c)}
+                        className={`cell ${isShaking ? "shake" : ""}`}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          backgroundColor: targetColor ? PALETTE[targetColor].slot : 'transparent',
+                          position: "relative",
+                          cursor: (boardCol !== null && boardCol === targetColor) ? "default" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          zIndex: isFlashing ? 20 : (isSparkling ? 30 : 1)
+                        }}
+                      >
+                        {/* The empty slot recessed socket */}
+                        {targetColor && (
+                          <div style={{
+                            position: 'absolute',
+                            width: '84%', height: '84%',
+                            backgroundColor: 'rgba(0, 0, 0, 0.12)',
+                            borderRadius: 4,
+                            boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.25), inset -1px -1px 2px rgba(255,255,255,0.4)"
+                          }}></div>
+                        )}
+                        {currentColor && (
+                          <div 
+                            className={isSparkling ? "sparkle" : ""}
+                            style={{ width: '88%', height: '88%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}
+                          >
+                            <JewelSvg color={currentColor} isFlashing={isFlashing} selected={selected} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tray */}
+          <div 
+            onClick={handleTrayDestinationClick}
+            className={shakeKey === 'tray-full' ? "shake" : ""}
+            style={{ 
+              background: "transparent", 
+              padding: "1rem", 
+              minHeight: 80,
+              position: "relative",
+              zIndex: 5
+            }}
+          >
+            <div style={{ fontSize: 12, color: "#999", marginBottom: 12, textAlign: "center", fontWeight: "bold" }}>
+              TRAY ({tray.length} / {trayCapacity})
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center" }}>
+              {Array.from({ length: trayCapacity }).map((_, i) => {
+                const trayCol = tray[i];
+                const slotId = "tray-" + i;
+                const isHidden = hiddenJewels.has(slotId);
+                const color = isHidden ? null : trayCol;
+                
+                const selected = color && isTraySelected(color) && !isHidden;
+
+                return (
+                  <div 
+                    id={slotId}
+                    key={slotId}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTrayClick(trayCol, i);
+                    }}
+                    className="cell"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      backgroundColor: "#e0e0e0",
+                      position: "relative",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: trayCol ? "pointer" : (selectedGroup?.type === 'board' ? "pointer" : "default")
+                    }}
+                  >
+                    {/* The empty slot recessed socket for Tray */}
+                    <div style={{
+                      position: 'absolute',
+                      width: '84%', height: '84%',
+                      backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                      borderRadius: 6,
+                      boxShadow: "inset 2px 2px 3px rgba(0,0,0,0.25), inset -2px -2px 3px rgba(255,255,255,0.4)"
+                    }}></div>
+
+                    {color && (
+                      <div style={{ width: '88%', height: '88%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}>
+                        <JewelSvg color={color} selected={selected} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Completion Overlay with Dim Background */}
+          {isComplete && (
+            <div className="overlay-dim" style={{
+              position: "fixed",
+              top: 0, left: 0, right: 0, bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 50
+            }}>
+              <div className="overlay-pop" style={{
+                background: "#fff",
+                border: "none",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+                borderRadius: 24,
+                padding: "2.5rem 4rem",
+                textAlign: "center",
+                position: "relative",
+                zIndex: 51
+              }}>
+                <h1 style={{ 
+                  margin: "0 0 1.5rem 0", 
+                  fontSize: "2.5rem",
+                  background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  textShadow: "0px 2px 4px rgba(0,0,0,0.1)"
+                }}>
+                  Excellent!
+                </h1>
+                <button 
+                  onClick={handleReset}
+                  style={{
+                    background: "linear-gradient(135deg, #007AFF 0%, #0056b3 100%)",
+                    color: "white",
+                    border: "none",
+                    padding: "16px 32px",
+                    borderRadius: 30,
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 15px rgba(0,122,255,0.4)",
+                    transition: "transform 0.2s"
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = "scale(1.05)"}
+                  onMouseOut={e => e.currentTarget.style.transform = "scale(1)"}
+                >
+                  다시 하기
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<JewelColoring />);
+  </script>
+</body>
+</html>
