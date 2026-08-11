@@ -311,6 +311,9 @@
         }}>
           <JewelSvg color={jewel.color} isFlying={true} />
         </div>
+      );
+    };
+
     const JewelColoring = () => {
       const { minR, maxR, minC, maxC } = useMemo(() => {
         let minR = ROWS, maxR = 0, minC = COLS, maxC = 0;
