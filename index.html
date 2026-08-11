@@ -392,6 +392,7 @@
             width: "100%",
             aspectRatio: "1 / 1",
             backgroundColor: targetColor ? PALETTE[targetColor].slot : 'transparent',
+            boxShadow: targetColor ? `0 0 0 1px ${PALETTE[targetColor].slot}` : 'none',
             position: "relative",
             cursor: "default",
             display: "flex",
