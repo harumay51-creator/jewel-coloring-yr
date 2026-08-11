@@ -114,7 +114,7 @@
 
     const ROWS = BOARD_CONFIG.length;
     const COLS = BOARD_CONFIG[0].length;
-    const INITIAL_TRAY_CAPACITY = 8;
+    const INITIAL_TRAY_CAPACITY = 12;
 
     function createInitialBoard() {
       const allJewels = [];
@@ -573,10 +573,9 @@
                }
                
                setTimeout(() => triggerFlights(moves), 0); // setTimeout ensures DOM rects can be grabbed accurately
-            } else {
-               setShakeKey(`board-${r}-${c}`);
-               setTimeout(() => setShakeKey(null), 300);
-            }
+             } else {
+               // Removed empty slot shake animation to keep board completely static
+             }
           }
           return;
         }
@@ -831,21 +830,25 @@
           </div>
 
           {/* Tray */}
-          <div 
-            onClick={handleTrayDestinationClick}
-            className={shakeKey === 'tray-full' ? "shake" : ""}
-            style={{ 
-              background: "transparent", 
-              padding: "1rem", 
-              minHeight: 80,
-              position: "relative",
-              zIndex: 5
-            }}
-          >
-            <div style={{ fontSize: 12, color: "#999", marginBottom: 12, textAlign: "center", fontWeight: "bold" }}>
-              TRAY ({tray.length} / {trayCapacity})
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center" }}>
+          <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: "4rem" }}>
+            <div 
+              onClick={handleTrayDestinationClick}
+              className={shakeKey === 'tray-full' ? "shake" : ""}
+              style={{ 
+                background: "#FFF9E6", // Cream/ivory board color
+                padding: "16px 12px", 
+                borderRadius: 16,
+                boxShadow: "0 6px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,1), 0 10px 0 #E6DCA8", // 3D thickness and drop shadow
+                position: "relative",
+                zIndex: 5,
+                width: "95%",
+                maxWidth: "380px",
+                display: "grid",
+                gridTemplateColumns: "repeat(6, 1fr)",
+                gap: "8px",
+                boxSizing: "border-box"
+              }}
+            >
               {Array.from({ length: trayCapacity }).map((_, i) => {
                 const trayCol = tray[i];
                 const slotId = "tray-" + i;
@@ -864,9 +867,8 @@
                     }}
                     className="cell"
                     style={{
-                      width: 28,
-                      height: 28,
-                      backgroundColor: "#e0e0e0",
+                      width: "100%",
+                      aspectRatio: "1 / 1",
                       position: "relative",
                       display: "flex",
                       alignItems: "center",
@@ -874,19 +876,19 @@
                       cursor: trayCol ? "pointer" : (selectedGroup?.type === 'board' ? "pointer" : "default")
                     }}
                   >
-                    {/* The empty slot recessed socket for Tray */}
+                    {/* The empty slot recessed socket for Tray - very subtle indication */}
                     {!color && (
                       <div style={{
                         position: 'absolute',
                         width: '84%', height: '84%',
-                        backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                        borderRadius: 6,
-                        boxShadow: "inset 2px 2px 3px rgba(0,0,0,0.25), inset -2px -2px 3px rgba(255,255,255,0.4)"
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        borderRadius: "50%", // Softer feel for tray slots
+                        boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.1)"
                       }}></div>
                     )}
 
                     {color && (
-                      <div style={{ width: '88%', height: '88%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}>
+                      <div style={{ width: '92%', height: '92%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}>
                         <JewelSvg color={color} selected={selected} />
                       </div>
                     )}
