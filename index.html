@@ -431,6 +431,93 @@
       );
     });
 
+    // --- A/B Test Variant B Palette ---
+    const PALETTE_B = {
+      "1": { base: "#FFF9E6", bevel: "#F0E6CC", dark: "#D9CBA3", slot: "#F5ECD1" }, 
+      "2": { base: "#4B9DF5", bevel: "#3079CC", dark: "#215B99", slot: "#4691E6" }, 
+      "3": { base: "#F5429F", bevel: "#C7267B", dark: "#991B5E", slot: "#E63A92" }, 
+      "4": { base: "#45C245", bevel: "#299629", dark: "#1A6B1A", slot: "#40B340" }, 
+      "5": { base: "#36368C", bevel: "#232363", dark: "#161642", slot: "#313180" }, 
+      "6": { base: "#FA992A", bevel: "#D17515", dark: "#A3570B", slot: "#EB8C21" }, 
+      "7": { base: "#954CD1", bevel: "#732CA3", dark: "#55197D", slot: "#8C43C4" }, 
+    };
+
+    const JewelSvgB = ({ color }) => {
+      const c = PALETTE_B[color];
+      if (!c) return null;
+      return (
+        <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+          <polygon points="30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30" fill={c.dark} />
+          <polygon points="30,2 70,2 65,15 35,15" fill="rgba(255,255,255,0.3)" />
+          <polygon points="70,2 98,30 85,35 65,15" fill="rgba(255,255,255,0.15)" />
+          <polygon points="98,30 98,70 85,65 85,35" fill="rgba(0,0,0,0.1)" />
+          <polygon points="98,70 70,98 65,85 85,65" fill="rgba(0,0,0,0.15)" />
+          <polygon points="70,98 30,98 35,85 65,85" fill="rgba(0,0,0,0.2)" />
+          <polygon points="30,98 2,70 15,65 35,85" fill="rgba(0,0,0,0.1)" />
+          <polygon points="2,70 2,30 15,35 15,65" fill="rgba(255,255,255,0.1)" />
+          <polygon points="2,30 30,2 35,15 15,35" fill="rgba(255,255,255,0.2)" />
+          <polygon points="35,15 65,15 85,35 85,65 65,85 35,85 15,65 15,35" fill={c.base} />
+          <polygon points="35,15 50,15 35,30" fill="rgba(255,255,255,0.25)" />
+        </svg>
+      );
+    };
+
+    const ABTestPanel = () => {
+      const layout = [
+        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"2",f:"2"}, {t:"2",f:null}],
+        [{t:"4",f:null},{t:"4",f:null},{t:"4",f:"4"}, {t:"2",f:"2"}, {t:"2",f:"2"}],
+        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"7",f:"7"}, {t:"7",f:"7"}, {t:"7",f:null}],
+        [{t:"2",f:"2"}, {t:"7",f:null},{t:"7",f:"7"}, {t:"7",f:"7"}, {t:"7",f:"7"}],
+        [{t:"2",f:null},{t:"2",f:"2"}, {t:"2",f:"2"}, {t:"7",f:"7"}, {t:"7",f:"7"}]
+      ];
+
+      const renderGrid = (isVariantB) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 18px)', gap: 0 }}>
+          {layout.map((row, r) => row.map((cell, c) => (
+            <div key={`${r}-${c}`} style={{
+              width: 18, height: 18,
+              backgroundColor: cell.t ? (isVariantB ? PALETTE_B[cell.t].slot : PALETTE[cell.t].slot) : 'transparent',
+              boxShadow: cell.t ? `0 0 0 1px ${isVariantB ? PALETTE_B[cell.t].slot : PALETTE[cell.t].slot}` : 'none',
+              position: 'relative',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              {(cell.t && !cell.f) && (
+                <div style={{ position: 'absolute', width: '88%', height: '88%' }}>
+                  <EmptySlotSvg />
+                </div>
+              )}
+              {cell.f && (
+                <div style={{ width: isVariantB ? '95%' : '88%', height: isVariantB ? '95%' : '88%', position: 'relative', zIndex: 2 }}>
+                  {isVariantB ? <JewelSvgB color={cell.f} /> : <JewelSvg color={cell.f} />}
+                </div>
+              )}
+            </div>
+          )))}
+        </div>
+      );
+
+      return (
+        <div style={{ 
+          background: '#fff', padding: '16px', marginBottom: '24px', 
+          borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+          width: '100%', boxSizing: 'border-box'
+        }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Tile System A/B Test (18px)</h3>
+          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <strong style={{ fontSize: 14 }}>A: Current (88% Size)</strong>
+              {renderGrid(false)}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <strong style={{ fontSize: 14 }}>B: Dense Bead (95% Size)</strong>
+              {renderGrid(true)}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     const JewelColoring = () => {
       const { minR, maxR, minC, maxC } = useMemo(() => {
         let minR = ROWS, maxR = 0, minC = COLS, maxC = 0;
@@ -950,6 +1037,7 @@
           {/* Confetti Particles on Complete */}
           {isComplete && <Confetti />}
 
+          <ABTestPanel />
           {/* Progress */}
           <div style={{ textAlign: "center", fontSize: 18, fontWeight: 'bold', color: "#333", marginBottom: "2rem" }}>
             {correctCells} / {totalCells}
