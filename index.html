@@ -12,7 +12,19 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } = React;
+    
+    // Stable callback hook to prevent stale closures without breaking memoization
+    function useEvent(handler) {
+      const handlerRef = useRef(null);
+      useLayoutEffect(() => {
+        handlerRef.current = handler;
+      });
+      return useCallback((...args) => {
+        const fn = handlerRef.current;
+        return fn?.(...args);
+      }, []);
+    }
 
     const PALETTE = {
       // 1: Ivory / Cream (Very Light, low sat)
@@ -114,7 +126,7 @@
 
     const ROWS = BOARD_CONFIG.length;
     const COLS = BOARD_CONFIG[0].length;
-    const INITIAL_TRAY_CAPACITY = 12;
+    const INITIAL_TRAY_CAPACITY = 24;
 
     function createInitialBoard() {
       const allJewels = [];
@@ -314,6 +326,67 @@
       );
     };
 
+    const MemoizedCell = React.memo(({
+      r, c,
+      targetColor,
+      boardCol,
+      slotId,
+      isHidden,
+      currentColor,
+      selected,
+      isShaking,
+      isFlashing,
+      isSparkling,
+      onPointerDown
+    }) => {
+      return (
+        <div
+          id={slotId}
+          onPointerDown={() => onPointerDown(r, c)}
+          className={`cell ${isShaking ? "shake" : ""}`}
+          style={{
+            width: "100%",
+            aspectRatio: "1 / 1",
+            backgroundColor: targetColor ? PALETTE[targetColor].slot : 'transparent',
+            position: "relative",
+            cursor: "default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: isFlashing ? 20 : (isSparkling ? 30 : 1)
+          }}
+        >
+          {(targetColor && !currentColor) && (
+            <div style={{
+              position: 'absolute',
+              width: '84%', height: '84%',
+              backgroundColor: 'rgba(0, 0, 0, 0.12)',
+              borderRadius: 4,
+              boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.25), inset -1px -1px 2px rgba(255,255,255,0.4)"
+            }}></div>
+          )}
+          {currentColor && (
+            <div 
+              className={isSparkling ? "sparkle" : ""}
+              style={{ width: '88%', height: '88%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}
+            >
+              <JewelSvg color={currentColor} isFlashing={isFlashing} selected={selected} />
+            </div>
+          )}
+        </div>
+      );
+    }, (prev, next) => {
+      return (
+        prev.boardCol === next.boardCol &&
+        prev.isHidden === next.isHidden &&
+        prev.currentColor === next.currentColor &&
+        prev.selected === next.selected &&
+        prev.isShaking === next.isShaking &&
+        prev.isFlashing === next.isFlashing &&
+        prev.isSparkling === next.isSparkling
+      );
+    });
+
     const JewelColoring = () => {
       const { minR, maxR, minC, maxC } = useMemo(() => {
         let minR = ROWS, maxR = 0, minC = COLS, maxC = 0;
@@ -421,15 +494,8 @@
         });
         
         if (jewel.destId && jewel.destId.startsWith('board-')) {
-           const parts = jewel.destId.split('-');
-           const r = parseInt(parts[1], 10);
-           const c = parseInt(parts[2], 10);
-           
-           setBoardState(prev => {
-             const next = prev.map(row => [...row]);
-             next[r][c] = jewel.color;
-             return next;
-           });
+           // Board state is already logically updated on initial click, 
+           // so we don't redundantly setBoardState here.
            
            // Trigger individual sparkle for landing
            setFlashSlots(prev => new Set(prev).add(jewel.destId));
@@ -702,14 +768,20 @@
         setFlashSlots(new Set());
       };
 
-      const isSelected = (r, c) => {
-        if (!selectedGroup || selectedGroup.type !== 'board') return false;
-        return selectedGroup.items.some(item => item.r === r && item.c === c);
-      };
+      const selectedSet = useMemo(() => {
+        if (!selectedGroup || selectedGroup.type !== 'board') return new Set();
+        return new Set(selectedGroup.items.map(item => `${item.r}-${item.c}`));
+      }, [selectedGroup]);
+
+      const isSelected = (r, c) => selectedSet.has(`${r}-${c}`);
 
       const isTraySelected = (color) => {
         return selectedGroup && selectedGroup.type === 'tray' && selectedGroup.color === color;
       };
+
+      const stableHandleBoardClick = useEvent(handleBoardClick);
+      const stableHandleTrayClick = useEvent(handleTrayClick);
+      const stableHandleTrayDestClick = useEvent(handleTrayDestinationClick);
 
       return (
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "1rem 16px", fontFamily: "sans-serif", position: "relative", boxSizing: "border-box" }}>
@@ -822,42 +894,20 @@
                     const isSparkling = landedSparks.has(slotId);
 
                     return (
-                      <div
-                        id={slotId}
+                      <MemoizedCell
                         key={r + "-" + c}
-                        onClick={() => handleBoardClick(r, c)}
-                        className={`cell ${isShaking ? "shake" : ""}`}
-                        style={{
-                          width: "100%",
-                          aspectRatio: "1 / 1",
-                          backgroundColor: targetColor ? PALETTE[targetColor].slot : 'transparent',
-                          position: "relative",
-                          cursor: (boardCol !== null && boardCol === targetColor) ? "default" : "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          zIndex: isFlashing ? 20 : (isSparkling ? 30 : 1)
-                        }}
-                      >
-                        {/* The empty slot recessed socket */}
-                        {(targetColor && !currentColor) && (
-                          <div style={{
-                            position: 'absolute',
-                            width: '84%', height: '84%',
-                            backgroundColor: 'rgba(0, 0, 0, 0.12)',
-                            borderRadius: 4,
-                            boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.25), inset -1px -1px 2px rgba(255,255,255,0.4)"
-                          }}></div>
-                        )}
-                        {currentColor && (
-                          <div 
-                            className={isSparkling ? "sparkle" : ""}
-                            style={{ width: '88%', height: '88%', pointerEvents: 'none', position: 'relative', zIndex: 2 }}
-                          >
-                            <JewelSvg color={currentColor} isFlashing={isFlashing} selected={selected} />
-                          </div>
-                        )}
-                      </div>
+                        r={r} c={c}
+                        targetColor={targetColor}
+                        boardCol={boardCol}
+                        slotId={slotId}
+                        isHidden={isHidden}
+                        currentColor={currentColor}
+                        selected={selected}
+                        isShaking={isShaking}
+                        isFlashing={isFlashing}
+                        isSparkling={isSparkling}
+                        onPointerDown={(e) => { e.preventDefault(); stableHandleBoardClick(r, c); }}
+                      />
                     );
                   });
                 })}
@@ -868,7 +918,7 @@
           {/* Tray */}
           <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: "4rem" }}>
             <div 
-              onClick={handleTrayDestinationClick}
+              onPointerDown={stableHandleTrayDestClick}
               className={shakeKey === 'tray-full' ? "shake" : ""}
               style={{ 
                 background: "#FFF9E6", // Cream/ivory board color
@@ -897,9 +947,9 @@
                   <div 
                     id={slotId}
                     key={slotId}
-                    onClick={(e) => {
+                    onPointerDown={(e) => {
                       e.stopPropagation();
-                      handleTrayClick(trayCol, i);
+                      stableHandleTrayClick(trayCol, i);
                     }}
                     className="cell"
                     style={{
@@ -909,7 +959,7 @@
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      cursor: trayCol ? "pointer" : (selectedGroup?.type === 'board' ? "pointer" : "default")
+                      cursor: "default"
                     }}
                   >
                     {/* The empty slot recessed socket for Tray - very subtle indication */}
