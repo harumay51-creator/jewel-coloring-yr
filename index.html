@@ -488,27 +488,25 @@
       const handleBoardClick = (r, c) => {
         if (BOARD_CONFIG[r][c] === null) return;
         const clickedColor = boardState[r][c];
+        const isHidden = hiddenJewels.has(`board-${r}-${c}`);
+        const isEmpty = clickedColor === null || isHidden;
 
-        if (clickedColor !== null && clickedColor === BOARD_CONFIG[r][c]) {
-          return;
-        }
+        // 1. Move logic: If a group is selected and we clicked an empty slot
+        if (selectedGroup && isEmpty) {
+          const targetColor = BOARD_CONFIG[r][c];
+          let selectedColor = null;
+          let isFromBoard = selectedGroup.type === 'board';
+          
+          if (isFromBoard && selectedGroup.items.length > 0) {
+             const first = selectedGroup.items[0];
+             selectedColor = boardState[first.r][first.c];
+          } else if (selectedGroup.type === 'tray') {
+             selectedColor = selectedGroup.color;
+          }
 
-        if (clickedColor === null) {
-          if (selectedGroup) {
-            const targetColor = BOARD_CONFIG[r][c];
-            let selectedColor = null;
-            let isFromBoard = selectedGroup.type === 'board';
-            
-            if (isFromBoard && selectedGroup.items.length > 0) {
-               const first = selectedGroup.items[0];
-               selectedColor = boardState[first.r][first.c];
-            } else if (selectedGroup.type === 'tray') {
-               selectedColor = selectedGroup.color;
-            }
-
-            if (selectedColor === targetColor) {
-               const emptyGroup = getConnectedEmptyGroup(boardState, r, c, targetColor);
-               
+          if (selectedColor === targetColor) {
+             const emptyGroup = getConnectedEmptyGroup(boardState, r, c, targetColor);
+             if (emptyGroup && emptyGroup.length > 0) {
                let amountToMove = 0;
                if (isFromBoard) {
                  amountToMove = Math.min(selectedGroup.items.length, emptyGroup.length);
@@ -572,15 +570,15 @@
                  }
                }
                
-               setTimeout(() => triggerFlights(moves), 0); // setTimeout ensures DOM rects can be grabbed accurately
-             } else {
-               // Removed empty slot shake animation to keep board completely static
+               setTimeout(() => triggerFlights(moves), 0);
+               return; // Move successful, stop here
              }
           }
-          return;
+          // If move was invalid (e.g., wrong color or no empty group), fall through to selection logic
         }
 
-        if (selectedGroup && selectedGroup.type === 'board') {
+        // 2. Deselect logic: Clicking the currently selected group
+        if (selectedGroup && selectedGroup.type === 'board' && !isEmpty) {
           const isSameGroup = selectedGroup.items.some(item => item.r === r && item.c === c);
           if (isSameGroup) {
             setSelectedGroup(null);
@@ -588,8 +586,45 @@
           }
         }
 
-        const group = getConnectedGroup(boardState, r, c);
-        setSelectedGroup({ type: 'board', items: group });
+        // 3. Selection logic (Direct or Nearest Jewel)
+        let targetR = r;
+        let targetC = c;
+        const isDirectlySelectable = !isEmpty && clickedColor !== BOARD_CONFIG[r][c];
+
+        if (!isDirectlySelectable) {
+          // Find nearest selectable jewel
+          let bestDist = Infinity;
+          let bestJewel = null;
+          
+          for (let ir = 0; ir < ROWS; ir++) {
+            for (let ic = 0; ic < COLS; ic++) {
+              if (BOARD_CONFIG[ir][ic] === null) continue;
+              const color = boardState[ir][ic];
+              if (color === null) continue;
+              if (hiddenJewels.has(`board-${ir}-${ic}`)) continue;
+              if (color === BOARD_CONFIG[ir][ic]) continue; // locked
+              
+              const dist = Math.sqrt(Math.pow(ir - r, 2) + Math.pow(ic - c, 2));
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestJewel = { r: ir, c: ic };
+              }
+            }
+          }
+
+          // Search radius threshold (2.5 cells)
+          if (bestJewel && bestDist <= 2.5) {
+            targetR = bestJewel.r;
+            targetC = bestJewel.c;
+          } else {
+            return; // No selectable jewel nearby
+          }
+        }
+
+        const group = getConnectedGroup(boardState, targetR, targetC);
+        if (group.length > 0) {
+          setSelectedGroup({ type: 'board', items: group });
+        }
       };
 
       const handleTrayClick = (clickedColor, index) => {
@@ -741,6 +776,7 @@
               background: transparent;
               padding: 0%;
               box-sizing: border-box;
+              -webkit-tap-highlight-color: transparent;
             }
           `}</style>
 
@@ -844,8 +880,8 @@
                 width: "95%",
                 maxWidth: "380px",
                 display: "grid",
-                gridTemplateColumns: "repeat(6, 1fr)",
-                gap: "8px",
+                gridTemplateColumns: "repeat(12, 1fr)",
+                gap: "3px",
                 boxSizing: "border-box"
               }}
             >
