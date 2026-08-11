@@ -317,24 +317,10 @@
 
       const dx = jewel.endX - jewel.startX;
       const dy = jewel.endY - jewel.startY;
-      const dist = Math.hypot(dx, dy);
       
-      let nx = -dy;
-      let ny = dx;
-      if (ny > 0) {
-        nx = dy;
-        ny = -dx;
-      }
-      const len = Math.hypot(nx, ny);
-      if (len > 0) {
-        nx /= len;
-        ny /= len;
-      }
-      
-      // 6% of travel distance as curve peak
-      const bulge = dist * 0.06;
-      const cx = nx * bulge;
-      const cy = ny * bulge;
+      // Use the shared curve computed for the entire group
+      const cx = jewel.sharedCx;
+      const cy = jewel.sharedCy;
 
       return (
         <div style={{
@@ -583,16 +569,50 @@
         });
         
         if (flights.length > 0) {
-          const originX = flights[0].startX;
-          const originY = flights[0].startY;
-          flights.sort((a, b) => {
-            const distA = Math.hypot(a.startX - originX, a.startY - originY);
-            const distB = Math.hypot(b.startX - originX, b.startY - originY);
-            return distA - distB;
+          // 1. Calculate Group Centroids
+          let sumStartX = 0, sumStartY = 0, sumEndX = 0, sumEndY = 0;
+          flights.forEach(f => {
+            sumStartX += f.startX; sumStartY += f.startY;
+            sumEndX += f.endX; sumEndY += f.endY;
           });
+          const meanStartX = sumStartX / flights.length;
+          const meanStartY = sumStartY / flights.length;
+          const meanEndX = sumEndX / flights.length;
+          const meanEndY = sumEndY / flights.length;
+
+          // 2. Calculate Group Direction and Shared Flow Control Point
+          const groupDx = meanEndX - meanStartX;
+          const groupDy = meanEndY - meanStartY;
+          const groupDist = Math.hypot(groupDx, groupDy);
+
+          // Normal vector to the left of the travel direction
+          let nx = -groupDy;
+          let ny = groupDx;
+          const len = Math.hypot(nx, ny);
+          if (len > 0) {
+            nx /= len;
+            ny /= len;
+          }
+          
+          // Bulge amount: 8% of the total group travel distance
+          const bulge = groupDist * 0.08;
+          const sharedCx = nx * bulge;
+          const sharedCy = ny * bulge;
+
+          // 3. Sort by projection along the travel vector to create a Stream
+          flights.sort((a, b) => {
+            const projA = a.startX * groupDx + a.startY * groupDy;
+            const projB = b.startX * groupDx + b.startY * groupDy;
+            // Largest projection goes first (closest to destination along travel vector)
+            return projB - projA;
+          });
+
           flights.forEach((f, i) => {
             f.delay = i * 45;
+            f.sharedCx = sharedCx;
+            f.sharedCy = sharedCy;
           });
+
           setFlyingJewels(prev => [...prev, ...flights]);
           setHiddenJewels(newHidden);
         }
