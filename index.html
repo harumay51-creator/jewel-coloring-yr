@@ -264,6 +264,13 @@
       const confettiColors = ['#ff0a54', '#ff477e', '#ff7096', '#ff85a1', '#fbb1bd', '#f9bec7', '#ffd166', '#06d6a0', '#118ab2', '#073b4c', '#ffd166', '#ff9f1c'];
       return (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 100, overflow: 'hidden' }}>
+          <style>{`
+            @keyframes dynamic-arc {
+              0% { transform: translate(0px, 0px); }
+              50% { transform: translate(var(--cx), var(--cy)); }
+              100% { transform: translate(0px, 0px); }
+            }
+          `}</style>
           {Array.from({ length: 70 }).map((_, i) => {
             const left = Math.random() * 100;
             const animDuration = 1.5 + Math.random() * 2; 
@@ -308,20 +315,50 @@
 
       if (isDone) return null;
 
+      const dx = jewel.endX - jewel.startX;
+      const dy = jewel.endY - jewel.startY;
+      const dist = Math.hypot(dx, dy);
+      
+      let nx = -dy;
+      let ny = dx;
+      if (ny > 0) {
+        nx = dy;
+        ny = -dx;
+      }
+      const len = Math.hypot(nx, ny);
+      if (len > 0) {
+        nx /= len;
+        ny /= len;
+      }
+      
+      // 6% of travel distance as curve peak
+      const bulge = dist * 0.06;
+      const cx = nx * bulge;
+      const cy = ny * bulge;
+
       return (
         <div style={{
           position: 'fixed',
-          left: isFlying ? jewel.endX : jewel.startX,
-          top: isFlying ? jewel.endY : jewel.startY,
+          left: jewel.startX,
+          top: jewel.startY,
           width: isFlying ? jewel.endW : jewel.startW,
           height: isFlying ? jewel.endH : jewel.startH,
+          transform: isFlying ? `translate(${dx}px, ${dy}px)` : 'translate(0px, 0px)',
           transition: 'all 0.2s ease-out',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           zIndex: 1000
         }}>
-          <JewelSvg color={jewel.color} isFlying={true} />
+          <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            '--cx': `${cx}px`,
+            '--cy': `${cy}px`,
+            animation: isFlying ? 'dynamic-arc 0.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards' : 'none'
+          }}>
+            <JewelSvg color={jewel.color} isFlying={true} />
+          </div>
         </div>
       );
     };
@@ -546,6 +583,16 @@
         });
         
         if (flights.length > 0) {
+          const originX = flights[0].startX;
+          const originY = flights[0].startY;
+          flights.sort((a, b) => {
+            const distA = Math.hypot(a.startX - originX, a.startY - originY);
+            const distB = Math.hypot(b.startX - originX, b.startY - originY);
+            return distA - distB;
+          });
+          flights.forEach((f, i) => {
+            f.delay = i * 45;
+          });
           setFlyingJewels(prev => [...prev, ...flights]);
           setHiddenJewels(newHidden);
         }
