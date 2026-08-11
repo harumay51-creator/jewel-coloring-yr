@@ -89,13 +89,26 @@
       );
     };
 
-    const EmptySlotSvg = ({ isTray }) => (
-      <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-        <polygon points="30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30" fill={isTray ? "rgba(0,0,0,0.03)" : "rgba(0,0,0,0.06)"} />
-        <polyline points="2,70 2,30 30,2 70,2 98,30" fill="none" stroke="rgba(0,0,0,0.12)" strokeWidth="3" />
-        <polyline points="98,30 98,70 70,98 30,98 2,70" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="3" />
-      </svg>
-    );
+    const EmptySlotSvg = ({ isTray }) => {
+      // Inner floor footprint (slightly shrunk from the 100x100 outer bounds)
+      const floor = "32,6 68,6 94,32 94,68 68,94 32,94 6,68 6,32";
+      // Top-Left inner wall (shadow side)
+      const tlWall = "98,30 70,2 30,2 2,30 2,70 6,68 6,32 32,6 68,6 94,32";
+      // Bottom-Right inner wall (highlight side)
+      const brWall = "2,70 30,98 70,98 98,70 98,30 94,32 94,68 68,94 32,94 6,68";
+      
+      const floorFill = isTray ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.12)";
+      const tlFill = isTray ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.22)";
+      const brFill = isTray ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.25)";
+
+      return (
+        <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+          <polygon points={floor} fill={floorFill} />
+          <polygon points={tlWall} fill={tlFill} />
+          <polygon points={brWall} fill={brFill} />
+        </svg>
+      );
+    };
 
     const c1 = "1";
     const c2 = "2";
