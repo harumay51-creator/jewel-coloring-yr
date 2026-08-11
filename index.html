@@ -342,7 +342,7 @@
       return (
         <div
           id={slotId}
-          onPointerDown={() => onPointerDown(r, c)}
+          onPointerDown={(e) => { e.preventDefault(); onPointerDown(r, c); }}
           className={`cell ${isShaking ? "shake" : ""}`}
           style={{
             width: "100%",
@@ -906,7 +906,7 @@
                         isShaking={isShaking}
                         isFlashing={isFlashing}
                         isSparkling={isSparkling}
-                        onPointerDown={(e) => { e.preventDefault(); stableHandleBoardClick(r, c); }}
+                        onPointerDown={stableHandleBoardClick}
                       />
                     );
                   });
