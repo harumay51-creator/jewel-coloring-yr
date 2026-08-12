@@ -92,34 +92,41 @@
     const EmptySlotSvg = ({ isTray }) => {
       const footprint = "30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30";
       
-      const shadowOpacity = isTray ? 0.35 : 0.55;
-      const highlightOpacity = isTray ? 0.6 : 0.85;
-      const floorOpacity = isTray ? 0.08 : 0.15;
+      const shadowOpacity = isTray ? 0.25 : 0.4;
+      const highlightOpacity = isTray ? 0.15 : 0.25; // Drastically reduced to prevent "white border" look
+      const floorOpacity = isTray ? 0.08 : 0.15; // Kept the darker floor depth
       
       return (
         <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
           <defs>
-            <clipPath id="slotClip">
-              <polygon points={footprint} />
-            </clipPath>
-            
-            <filter id="insetShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="6" dy="6" stdDeviation="5" floodColor="#000" floodOpacity={shadowOpacity} result="shadow1" />
-              <feDropShadow dx="-6" dy="-6" stdDeviation="5" floodColor="#fff" floodOpacity={highlightOpacity} />
+            <filter id="pressedSocket" x="-10%" y="-10%" width="120%" height="120%">
+              {/* Inner shadow top-left */}
+              <feOffset in="SourceAlpha" dx="4" dy="4" />
+              <feGaussianBlur stdDeviation="3" result="offset-blur" />
+              <feComposite operator="out" in="SourceAlpha" in2="offset-blur" result="inverse" />
+              <feFlood floodColor="black" floodOpacity={shadowOpacity} result="color" />
+              <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+              
+              {/* Inner highlight bottom-right */}
+              <feOffset in="SourceAlpha" dx="-4" dy="-4" />
+              <feGaussianBlur stdDeviation="3" result="offset-blur-hl" />
+              <feComposite operator="out" in="SourceAlpha" in2="offset-blur-hl" result="inverse-hl" />
+              <feFlood floodColor="white" floodOpacity={highlightOpacity} result="color-hl" />
+              <feComposite operator="in" in="color-hl" in2="inverse-hl" result="highlight" />
+              
+              <feMerge>
+                <feMergeNode in="SourceGraphic" />
+                <feMergeNode in="shadow" />
+                <feMergeNode in="highlight" />
+              </feMerge>
             </filter>
           </defs>
           
-          <polygon points={footprint} fill={`rgba(0,0,0,${floorOpacity})`} />
-          
-          <g clipPath="url(#slotClip)">
-            <path 
-              d="M -100,-100 L 200,-100 L 200,200 L -100,200 Z 
-                 M 30,2 L 2,30 L 2,70 L 30,98 L 70,98 L 98,70 L 98,30 L 70,2 Z" 
-              fillRule="evenodd"
-              fill="#000" 
-              filter="url(#insetShadow)" 
-            />
-          </g>
+          <polygon 
+            points={footprint} 
+            fill={`rgba(0,0,0,${floorOpacity})`} 
+            filter="url(#pressedSocket)" 
+          />
         </svg>
       );
     };
