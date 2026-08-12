@@ -90,22 +90,36 @@
     };
 
     const EmptySlotSvg = ({ isTray }) => {
-      // Inner floor footprint (slightly shrunk from the 100x100 outer bounds)
-      const floor = "32,6 68,6 94,32 94,68 68,94 32,94 6,68 6,32";
-      // Top-Left inner wall (shadow side)
-      const tlWall = "98,30 70,2 30,2 2,30 2,70 6,68 6,32 32,6 68,6 94,32";
-      // Bottom-Right inner wall (highlight side)
-      const brWall = "2,70 30,98 70,98 98,70 98,30 94,32 94,68 68,94 32,94 6,68";
+      const footprint = "30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30";
       
-      const floorFill = isTray ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.12)";
-      const tlFill = isTray ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.22)";
-      const brFill = isTray ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.25)";
-
+      const shadowOpacity = isTray ? 0.35 : 0.55;
+      const highlightOpacity = isTray ? 0.6 : 0.85;
+      const floorOpacity = isTray ? 0.08 : 0.15;
+      
       return (
         <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-          <polygon points={floor} fill={floorFill} />
-          <polygon points={tlWall} fill={tlFill} />
-          <polygon points={brWall} fill={brFill} />
+          <defs>
+            <clipPath id="slotClip">
+              <polygon points={footprint} />
+            </clipPath>
+            
+            <filter id="insetShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="6" dy="6" stdDeviation="5" floodColor="#000" floodOpacity={shadowOpacity} result="shadow1" />
+              <feDropShadow dx="-6" dy="-6" stdDeviation="5" floodColor="#fff" floodOpacity={highlightOpacity} />
+            </filter>
+          </defs>
+          
+          <polygon points={footprint} fill={`rgba(0,0,0,${floorOpacity})`} />
+          
+          <g clipPath="url(#slotClip)">
+            <path 
+              d="M -100,-100 L 200,-100 L 200,200 L -100,200 Z 
+                 M 30,2 L 2,30 L 2,70 L 30,98 L 70,98 L 98,70 L 98,30 L 70,2 Z" 
+              fillRule="evenodd"
+              fill="#000" 
+              filter="url(#insetShadow)" 
+            />
+          </g>
         </svg>
       );
     };
@@ -459,103 +473,7 @@
       );
     };
 
-    // --- Fail-proof Inset Drop Shadow Socket ---
-    const EmptySlotSvgSocket = ({ isTray }) => {
-      const footprint = "30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30";
-      
-      const shadowOpacity = isTray ? 0.35 : 0.55;
-      const highlightOpacity = isTray ? 0.6 : 0.85;
-      // 레퍼런스처럼 바닥이 안으로 들어가 있어서 전체적으로 한 톤 더 어두워 보이도록 값 상승
-      const floorOpacity = isTray ? 0.08 : 0.15;
-      
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-          <defs>
-            <clipPath id="slotClip">
-              <polygon points={footprint} />
-            </clipPath>
-            
-            <filter id="insetShadow" x="-50%" y="-50%" width="200%" height="200%">
-              {/* Top-left dark shadow falling inward */}
-              <feDropShadow dx="6" dy="6" stdDeviation="5" floodColor="#000" floodOpacity={shadowOpacity} result="shadow1" />
-              {/* Bottom-right bright highlight falling inward */}
-              <feDropShadow dx="-6" dy="-6" stdDeviation="5" floodColor="#fff" floodOpacity={highlightOpacity} />
-            </filter>
-          </defs>
-          
-          {/* 1. Base floor color (slightly darker than board, completely flat) */}
-          <polygon points={footprint} fill={`rgba(0,0,0,${floorOpacity})`} />
-          
-          {/* 2. The frame casting the shadow */}
-          <g clipPath="url(#slotClip)">
-            {/* The path is a massive outer square minus the inner footprint hole */}
-            <path 
-              d="M -100,-100 L 200,-100 L 200,200 L -100,200 Z 
-                 M 30,2 L 2,30 L 2,70 L 30,98 L 70,98 L 98,70 L 98,30 L 70,2 Z" 
-              fillRule="evenodd"
-              fill="#000" 
-              filter="url(#insetShadow)" 
-            />
-          </g>
-        </svg>
-      );
-    };
 
-    const ABTestPanel = () => {
-      // Includes 1 isolated Empty Slot, and a 3x3 contiguous block of Empty Slots
-      const layout = [
-        [{t:"4",f:"4"}, {t:"4",f:null}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}],
-        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}],
-        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
-        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
-        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}]
-      ];
-
-      const renderGrid = (size) => (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(5, ${size}px)`, gridTemplateRows: `repeat(5, ${size}px)`, gap: 0 }}>
-          {layout.map((row, r) => row.map((cell, c) => (
-            <div key={`${r}-${c}`} style={{
-              width: '100%', height: '100%',
-              backgroundColor: cell.t ? PALETTE[cell.t].slot : 'transparent',
-              position: 'relative',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              {(cell.t && !cell.f) && (
-                <div style={{ position: 'absolute', width: '88%', height: '88%' }}>
-                  <EmptySlotSvgSocket />
-                </div>
-              )}
-              {cell.f && (
-                <div style={{ width: '88%', height: '88%', position: 'relative', zIndex: 2 }}>
-                  <JewelSvg color={cell.f} />
-                </div>
-              )}
-            </div>
-          )))}
-        </div>
-      );
-
-      return (
-        <div style={{ 
-          background: '#fff', padding: '16px', marginBottom: '24px', 
-          borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
-          width: '100%', boxSizing: 'border-box'
-        }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Pressed Socket (Inner Shadow Filter)</h3>
-          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <strong style={{ fontSize: 14 }}>18px (Real Size)</strong>
-              {renderGrid(18)}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <strong style={{ fontSize: 14 }}>36px (Zoomed)</strong>
-              {renderGrid(36)}
-            </div>
-          </div>
-        </div>
-      );
-    };
 
     const JewelColoring = () => {
       const { minR, maxR, minC, maxC } = useMemo(() => {
@@ -1076,7 +994,7 @@
           {/* Confetti Particles on Complete */}
           {isComplete && <Confetti />}
 
-          <ABTestPanel />
+
           {/* Progress */}
           <div style={{ textAlign: "center", fontSize: 18, fontWeight: 'bold', color: "#333", marginBottom: "2rem" }}>
             {correctCells} / {totalCells}
