@@ -459,44 +459,58 @@
       );
     };
 
-    // --- Molded Socket Empty Slot ---
-    const EmptySlotSvgMolded = ({ isTray }) => {
-      const outer = "30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30";
-      const inner = "46,18 54,18 82,46 82,54 54,82 46,82 18,54 18,46";
+    // --- True Inner Shadow Socket ---
+    const EmptySlotSvgSocket = ({ isTray }) => {
+      const footprint = "30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30";
       
-      const pathD = `M ${outer.split(' ').join(' L ')} Z M ${inner.split(' ').join(' L ')} Z`;
+      const shadowOpacity = isTray ? 0.2 : 0.35;
+      const highlightOpacity = isTray ? 0.3 : 0.45;
+      const floorOpacity = isTray ? 0.04 : 0.08;
       
       return (
         <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
           <defs>
-            <linearGradient id="wallGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              {/* Shadow on top-left wall */}
-              <stop offset="0%" stopColor="#000" stopOpacity={isTray ? 0.3 : 0.45} />
-              {/* Soft transition on the perpendicular walls */}
-              <stop offset="35%" stopColor="#000" stopOpacity="0.1" />
-              <stop offset="65%" stopColor="#fff" stopOpacity="0.1" />
-              {/* Highlight on bottom-right wall */}
-              <stop offset="100%" stopColor="#fff" stopOpacity={isTray ? 0.3 : 0.6} />
-            </linearGradient>
+            <filter id="pressedSocket" x="-10%" y="-10%" width="120%" height="120%">
+              {/* Inner shadow top-left */}
+              <feOffset in="SourceAlpha" dx="4" dy="4" />
+              <feGaussianBlur stdDeviation="3" result="offset-blur" />
+              <feComposite operator="out" in="SourceAlpha" in2="offset-blur" result="inverse" />
+              <feFlood floodColor="black" floodOpacity={shadowOpacity} result="color" />
+              <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+              
+              {/* Inner highlight bottom-right */}
+              <feOffset in="SourceAlpha" dx="-4" dy="-4" />
+              <feGaussianBlur stdDeviation="3" result="offset-blur-hl" />
+              <feComposite operator="out" in="SourceAlpha" in2="offset-blur-hl" result="inverse-hl" />
+              <feFlood floodColor="white" floodOpacity={highlightOpacity} result="color-hl" />
+              <feComposite operator="in" in="color-hl" in2="inverse-hl" result="highlight" />
+              
+              <feMerge>
+                <feMergeNode in="SourceGraphic" />
+                <feMergeNode in="shadow" />
+                <feMergeNode in="highlight" />
+              </feMerge>
+            </filter>
           </defs>
           
-          {/* Continuous wide wall (donut shape) filled with linear gradient */}
-          <path d={pathD} fillRule="evenodd" fill="url(#wallGrad)" />
-                
-          {/* Central flat floor: visibly lowered by a uniform dark tint */}
-          <polygon points={inner} fill="rgba(0,0,0,0.18)" />
+          {/* A single wide floor filled with a slight dark tint, with the inner shadow filter applied */}
+          <polygon 
+            points={footprint} 
+            fill={`rgba(0,0,0,${floorOpacity})`} 
+            filter="url(#pressedSocket)" 
+          />
         </svg>
       );
     };
 
     const ABTestPanel = () => {
-      // 5x5 layout with a 3x3 contiguous block of Empty Slots in the center
+      // Includes 1 isolated Empty Slot, and a 3x3 contiguous block of Empty Slots
       const layout = [
+        [{t:"4",f:"4"}, {t:"4",f:null}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}],
         [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}],
         [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
         [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
-        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
-        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}]
+        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}]
       ];
 
       const renderGrid = (size) => (
@@ -510,7 +524,7 @@
             }}>
               {(cell.t && !cell.f) && (
                 <div style={{ position: 'absolute', width: '88%', height: '88%' }}>
-                  <EmptySlotSvgMolded />
+                  <EmptySlotSvgSocket />
                 </div>
               )}
               {cell.f && (
@@ -523,29 +537,6 @@
         </div>
       );
 
-      const renderHeightComparison = () => (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', marginTop: '16px', background: '#f5f5f5', padding: '12px', borderRadius: '8px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-            <div style={{ width: 36, height: 36, backgroundColor: PALETTE["4"].slot }} />
-            <span style={{ fontSize: 10, color: '#666' }}>Slot Background</span>
-          </div>
-          <span style={{ fontSize: 14, color: '#aaa' }}>→</span>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-            <div style={{ width: 36, height: 36, backgroundColor: PALETTE["4"].slot, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: '88%', height: '88%', position: 'absolute' }}><EmptySlotSvgMolded /></div>
-            </div>
-            <span style={{ fontSize: 10, color: '#666' }}>Empty Slot</span>
-          </div>
-          <span style={{ fontSize: 14, color: '#aaa' }}>→</span>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-            <div style={{ width: 36, height: 36, backgroundColor: PALETTE["4"].slot, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: '88%', height: '88%', position: 'absolute' }}><JewelSvg color="4" /></div>
-            </div>
-            <span style={{ fontSize: 10, color: '#666' }}>Jewel</span>
-          </div>
-        </div>
-      );
-
       return (
         <div style={{ 
           background: '#fff', padding: '16px', marginBottom: '24px', 
@@ -553,7 +544,7 @@
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
           width: '100%', boxSizing: 'border-box'
         }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Shallow Molded Socket</h3>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Pressed Socket (Inner Shadow Filter)</h3>
           <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <strong style={{ fontSize: 14 }}>18px (Real Size)</strong>
@@ -563,10 +554,6 @@
               <strong style={{ fontSize: 14 }}>36px (Zoomed)</strong>
               {renderGrid(36)}
             </div>
-          </div>
-          <div style={{ width: '100%', borderTop: '1px solid #eee', paddingTop: '8px' }}>
-            <strong style={{ fontSize: 14, display: 'block', textAlign: 'center' }}>Height Comparison (36px)</strong>
-            {renderHeightComparison()}
           </div>
         </div>
       );
