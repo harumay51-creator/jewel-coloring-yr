@@ -459,38 +459,44 @@
       );
     };
 
-    // --- Reference-style Soft Recess Empty Slot ---
-    const EmptySlotSvgReferenceStyle = ({ isTray }) => {
-      // Inset footprint by 6 units to allow the 12-unit stroke to stay within 100x100 bounds
-      const footprint = "32,8 68,8 92,32 92,68 68,92 32,92 8,68 8,32";
+    // --- Molded Socket Empty Slot ---
+    const EmptySlotSvgMolded = ({ isTray }) => {
+      const outer = "30,2 70,2 98,30 98,70 70,98 30,98 2,70 2,30";
+      const inner = "46,18 54,18 82,46 82,54 54,82 46,82 18,54 18,46";
+      
+      const pathD = `M ${outer.split(' ').join(' L ')} Z M ${inner.split(' ').join(' L ')} Z`;
       
       return (
         <svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
           <defs>
-            <linearGradient id="recessGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id="wallGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              {/* Shadow on top-left wall */}
               <stop offset="0%" stopColor="#000" stopOpacity={isTray ? 0.3 : 0.45} />
-              <stop offset="40%" stopColor="#000" stopOpacity="0" />
-              <stop offset="60%" stopColor="#fff" stopOpacity="0" />
-              <stop offset="100%" stopColor="#fff" stopOpacity={isTray ? 0.4 : 0.6} />
+              {/* Soft transition on the perpendicular walls */}
+              <stop offset="35%" stopColor="#000" stopOpacity="0.1" />
+              <stop offset="65%" stopColor="#fff" stopOpacity="0.1" />
+              {/* Highlight on bottom-right wall */}
+              <stop offset="100%" stopColor="#fff" stopOpacity={isTray ? 0.3 : 0.6} />
             </linearGradient>
           </defs>
           
-          <polygon points={footprint} fill="rgba(0,0,0,0.08)" />
-          <polygon points={footprint} fill="none" stroke="url(#recessGrad)" strokeWidth="12" strokeLinejoin="round" opacity="0.3" />
-          <polygon points={footprint} fill="none" stroke="url(#recessGrad)" strokeWidth="8" strokeLinejoin="round" opacity="0.6" />
-          <polygon points={footprint} fill="none" stroke="url(#recessGrad)" strokeWidth="4" strokeLinejoin="round" opacity="1.0" />
+          {/* Continuous wide wall (donut shape) filled with linear gradient */}
+          <path d={pathD} fillRule="evenodd" fill="url(#wallGrad)" />
+                
+          {/* Central flat floor: visibly lowered by a uniform dark tint */}
+          <polygon points={inner} fill="rgba(0,0,0,0.18)" />
         </svg>
       );
     };
 
     const ABTestPanel = () => {
-      // Use more empty slots to clearly see them
+      // 5x5 layout with a 3x3 contiguous block of Empty Slots in the center
       const layout = [
-        [{t:"4",f:"4"}, {t:"4",f:null}, {t:"4",f:"4"}, {t:"2",f:"2"}, {t:"2",f:null}],
-        [{t:"4",f:null},{t:"4",f:null},{t:"4",f:"4"}, {t:"2",f:null}, {t:"2",f:"2"}],
-        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"7",f:null}, {t:"7",f:null}, {t:"7",f:null}],
-        [{t:"2",f:"2"}, {t:"7",f:null},{t:"7",f:"7"}, {t:"7",f:"7"}, {t:"7",f:"7"}],
-        [{t:"2",f:null},{t:"2",f:"2"}, {t:"2",f:"2"}, {t:"7",f:"7"}, {t:"7",f:"7"}]
+        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}],
+        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
+        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
+        [{t:"4",f:"4"}, {t:"4",f:null},{t:"4",f:null}, {t:"4",f:null}, {t:"4",f:"4"}],
+        [{t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}, {t:"4",f:"4"}]
       ];
 
       const renderGrid = (size) => (
@@ -504,7 +510,7 @@
             }}>
               {(cell.t && !cell.f) && (
                 <div style={{ position: 'absolute', width: '88%', height: '88%' }}>
-                  <EmptySlotSvgReferenceStyle />
+                  <EmptySlotSvgMolded />
                 </div>
               )}
               {cell.f && (
@@ -526,7 +532,7 @@
           <span style={{ fontSize: 14, color: '#aaa' }}>→</span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
             <div style={{ width: 36, height: 36, backgroundColor: PALETTE["4"].slot, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: '88%', height: '88%', position: 'absolute' }}><EmptySlotSvgReferenceStyle /></div>
+              <div style={{ width: '88%', height: '88%', position: 'absolute' }}><EmptySlotSvgMolded /></div>
             </div>
             <span style={{ fontSize: 10, color: '#666' }}>Empty Slot</span>
           </div>
@@ -547,7 +553,7 @@
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
           width: '100%', boxSizing: 'border-box'
         }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Reference-style Soft Recess</h3>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Shallow Molded Socket</h3>
           <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <strong style={{ fontSize: 14 }}>18px (Real Size)</strong>
